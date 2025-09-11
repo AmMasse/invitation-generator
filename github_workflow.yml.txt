@@ -1,0 +1,179 @@
+name: Build Invitation Generator
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build Windows executable
+      run: |
+        pyinstaller --onefile --windowed --name="InvitationGenerator" --icon=icon.ico main.py
+      continue-on-error: true
+    
+    - name: Build Windows executable (fallback without icon)
+      if: failure()
+      run: |
+        pyinstaller --onefile --windowed --name="InvitationGenerator" main.py
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: windows-executable
+        path: dist/InvitationGenerator.exe
+        retention-days: 30
+
+  build-macos:
+    runs-on: macos-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build macOS executable
+      run: |
+        pyinstaller --onefile --windowed --name="InvitationGenerator" main.py
+    
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: macos-executable
+        path: dist/InvitationGenerator
+        retention-days: 30
+
+  build-linux:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Build Linux executable
+      run: |
+        pyinstaller --onefile --windowed --name="InvitationGenerator" main.py
+    
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: linux-executable
+        path: dist/InvitationGenerator
+        retention-days: 30
+
+  create-release:
+    needs: [build-windows, build-macos, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: ./artifacts
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Invitation Generator ${{ github.ref }}
+        body: |
+          ## Template-Based Invitation Generator
+          
+          ### Downloads:
+          - **Windows**: InvitationGenerator.exe
+          - **macOS**: InvitationGenerator (macOS)
+          - **Linux**: InvitationGenerator (Linux)
+          
+          ### Features:
+          - Upload custom template backgrounds
+          - Precise text positioning (millimeter accuracy)
+          - Batch generate personalized invitations
+          - Professional A5 PDF output
+          - Clickable RSVP buttons
+          
+          ### Requirements:
+          - Excel file with columns: Name, Link, Occasion
+          - Template image (PNG/JPG recommended at A5 size)
+          
+          ### Installation:
+          1. Download the appropriate file for your OS
+          2. Run the executable (no installation needed)
+          3. Upload your template and Excel file
+          4. Generate beautiful invitations!
+        draft: false
+        prerelease: false
+    
+    - name: Upload Windows Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/windows-executable/InvitationGenerator.exe
+        asset_name: InvitationGenerator-Windows.exe
+        asset_content_type: application/octet-stream
+    
+    - name: Upload macOS Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/macos-executable/InvitationGenerator
+        asset_name: InvitationGenerator-macOS
+        asset_content_type: application/octet-stream
+    
+    - name: Upload Linux Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./artifacts/linux-executable/InvitationGenerator
+        asset_name: InvitationGenerator-Linux
+        asset_content_type: application/octet-stream
