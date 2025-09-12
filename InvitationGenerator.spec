@@ -30,6 +30,7 @@ a = Analysis(
         '_tkinter',
         'threading',
         'json',
+        'numpy',
         'os',
         'sys',
         # Add these to help with DLL issues
@@ -40,7 +41,6 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         'matplotlib',
-        'numpy',
         'scipy',
         'IPython',
         'jupyter',
