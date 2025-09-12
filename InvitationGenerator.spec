@@ -1,11 +1,13 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+block_cipher = None
+
 a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
     datas=[
-        ('templates/', 'templates/'),  # Include template folder if you have one
+        # Include any additional data files if needed
     ],
     hiddenimports=[
         'customtkinter',
@@ -14,18 +16,24 @@ a = Analysis(
         'reportlab.lib.colors',
         'reportlab.lib.units',
         'reportlab.lib.utils',
-        'reportlab.lib.enums',
+        'reportlab.pdfbase',
+        'reportlab.pdfbase.pdfmetrics',
+        'reportlab.pdfbase._fontdata',
         'pandas',
         'openpyxl',
         'PIL',
         'PIL.Image',
+        'PIL._tkinter_finder',
         'tkinter',
         'tkinter.filedialog',
         'tkinter.messagebox',
+        '_tkinter',
         'threading',
         'json',
         'os',
-        'sys'
+        'sys',
+        # Add these to help with DLL issues
+        'pkg_resources.py2_warn',
     ],
     hookspath=[],
     hooksconfig={},
@@ -35,32 +43,45 @@ a = Analysis(
         'numpy',
         'scipy',
         'IPython',
-        'jupyter'
+        'jupyter',
+        'test',
+        'tests',
+        'unittest'
     ],
+    win_no_prefer_redirects=False,
+    win_private_assemblies=False,
+    cipher=block_cipher,
     noarchive=False,
-    optimize=0,
 )
 
-pyz = PYZ(a.pure)
+pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+# Use directory distribution instead of onefile for Windows
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='InvitationGenerator',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,  # Set to False for windowed app
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.ico'  # Optional: add your icon file
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='InvitationGenerator',
 )
