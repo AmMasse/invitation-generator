@@ -1,6 +1,9 @@
 customtkinter==5.2.2
-reportlab==4.0.7
 pandas==2.1.4
+reportlab==4.0.9
+Pillow==10.1.0
 openpyxl==3.1.2
-pillow==10.1.0
 pyinstaller==6.3.0
+# Additional dependencies to prevent DLL issues
+setuptools>=65.0.0
+wheel>=0.38.0
