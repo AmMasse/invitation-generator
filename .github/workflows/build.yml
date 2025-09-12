@@ -24,21 +24,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     
-    - name: Build Windows executable
+    - name: Build Windows executable with spec
       run: |
-        pyinstaller --onefile --windowed --name="InvitationGenerator" --icon=icon.ico main.py
-      continue-on-error: true
+        pyinstaller InvitationGenerator.spec
     
-    - name: Build Windows executable (fallback without icon)
-      if: failure()
+    - name: Package Windows app
       run: |
-        pyinstaller --onefile --windowed --name="InvitationGenerator" main.py
+        cd dist
+        powershell Compress-Archive -Path InvitationGenerator -DestinationPath InvitationGenerator-Windows.zip
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
-        name: windows-executable
-        path: dist/InvitationGenerator.exe
+        name: windows-package
+        path: dist/InvitationGenerator-Windows.zip
         retention-days: 30
 
   build-macos:
@@ -125,7 +124,7 @@ jobs:
           ## Template-Based Invitation Generator
           
           ### Downloads:
-          - **Windows**: InvitationGenerator.exe
+          - **Windows**: InvitationGenerator-Windows.zip
           - **macOS**: InvitationGenerator (macOS)
           - **Linux**: InvitationGenerator (Linux)
           
@@ -154,9 +153,9 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./artifacts/windows-executable/InvitationGenerator.exe
-        asset_name: InvitationGenerator-Windows.exe
-        asset_content_type: application/octet-stream
+        asset_path: ./artifacts/windows-package/InvitationGenerator-Windows.zip
+        asset_name: InvitationGenerator-Windows.zip
+        asset_content_type: application/zip
     
     - name: Upload macOS Release Asset
       uses: actions/upload-release-asset@v1
