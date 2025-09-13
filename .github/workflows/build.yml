@@ -42,8 +42,14 @@ jobs:
     
     - name: Package Windows app
       run: |
-        cd dist
-        powershell Compress-Archive -Path InvitationGenerator -DestinationPath InvitationGenerator-Windows.zip
+        if (Test-Path "dist/InvitationGenerator") {
+          Compress-Archive -Path dist/InvitationGenerator/* -DestinationPath dist/InvitationGenerator-Windows.zip
+        } elseif (Test-Path "dist/InvitationGenerator.exe") {
+          Compress-Archive -Path dist/InvitationGenerator.exe -DestinationPath dist/InvitationGenerator-Windows.zip
+        } else {
+          Write-Error "No Windows build found to package!"
+          exit 1
+        }
     
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
