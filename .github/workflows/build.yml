@@ -27,7 +27,8 @@ jobs:
     # Use spec file for Windows to create directory distribution (fixes DLL issues)
     - name: Build Windows executable with spec
       run: |
-        pyinstaller InvitationGenerator.spec
+        pip install pyinstaller pyinstaller-hooks-contrib
+        pyinstaller --clean InvitationGenerator.spec
       continue-on-error: true
     
     # Fallback build without icon if the main build fails
