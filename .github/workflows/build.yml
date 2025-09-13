@@ -25,26 +25,8 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller pyinstaller-hooks-contrib
     
-    # Check if spec file exists first
-    - name: Check for spec file
-      run: |
-        if (Test-Path "InvitationGenerator.spec") {
-          Write-Output "✅ Spec file found"
-          Get-Content "InvitationGenerator.spec"
-        } else {
-          Write-Output "⚠️ No spec file found - will use fallback method"
-        }
-    
-    # Use spec file for Windows to create directory distribution (fixes DLL issues)
-    - name: Build Windows executable with spec
-      if: hashFiles('InvitationGenerator.spec') != ''
-      run: |
-        pyinstaller --clean --noconfirm InvitationGenerator.spec
-      continue-on-error: true
-    
-    # More comprehensive fallback build with extra modules
-    - name: Build Windows executable (comprehensive fallback)
-      if: failure() || hashFiles('InvitationGenerator.spec') == ''
+    # Build Windows executable with comprehensive module inclusion
+    - name: Build Windows executable
       run: |
         pyinstaller --onedir --windowed --name="InvitationGenerator" ^
         --hidden-import="PIL._tkinter_finder" ^
@@ -59,12 +41,21 @@ jobs:
         --hidden-import="reportlab" ^
         --hidden-import="reportlab.pdfgen" ^
         --hidden-import="reportlab.lib" ^
+        --hidden-import="reportlab.lib.pagesizes" ^
+        --hidden-import="reportlab.lib.colors" ^
+        --hidden-import="reportlab.lib.units" ^
+        --hidden-import="reportlab.lib.utils" ^
+        --hidden-import="customtkinter" ^
         --hidden-import="collections.abc" ^
+        --hidden-import="threading" ^
+        --hidden-import="json" ^
         --collect-all="PIL" ^
         --collect-all="tkinter" ^
         --collect-all="pandas" ^
         --collect-all="openpyxl" ^
         --collect-all="reportlab" ^
+        --collect-all="customtkinter" ^
+        --collect-data="customtkinter" ^
         main.py
     
     # Debug: Show what was actually built
