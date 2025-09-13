@@ -1,4 +1,4 @@
-name: Build Invitation Generator
+name: Build Windows Invitation Generator
 
 on:
   push:
@@ -23,29 +23,97 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+        pip install pyinstaller pyinstaller-hooks-contrib
+    
+    # Check if spec file exists first
+    - name: Check for spec file
+      run: |
+        if (Test-Path "InvitationGenerator.spec") {
+          Write-Output "✅ Spec file found"
+          Get-Content "InvitationGenerator.spec"
+        } else {
+          Write-Output "⚠️ No spec file found - will use fallback method"
+        }
     
     # Use spec file for Windows to create directory distribution (fixes DLL issues)
     - name: Build Windows executable with spec
+      if: hashFiles('InvitationGenerator.spec') != ''
       run: |
-        pip install pyinstaller pyinstaller-hooks-contrib
-        pyinstaller --clean InvitationGenerator.spec
+        pyinstaller --clean --noconfirm InvitationGenerator.spec
       continue-on-error: true
     
-    # Fallback build without icon if the main build fails
-    - name: Build Windows executable (fallback without icon)
-      if: failure()
+    # More comprehensive fallback build with extra modules
+    - name: Build Windows executable (comprehensive fallback)
+      if: failure() || hashFiles('InvitationGenerator.spec') == ''
       run: |
-        pyinstaller --windowed --name="InvitationGenerator" ^
-        --hidden-import='PIL._tkinter_finder' ^
-        --hidden-import='pkg_resources.py2_warn' ^
+        pyinstaller --onedir --windowed --name="InvitationGenerator" ^
+        --hidden-import="PIL._tkinter_finder" ^
+        --hidden-import="pkg_resources.py2_warn" ^
+        --hidden-import="PIL" ^
+        --hidden-import="PIL.Image" ^
+        --hidden-import="tkinter" ^
+        --hidden-import="tkinter.filedialog" ^
+        --hidden-import="tkinter.messagebox" ^
+        --hidden-import="pandas" ^
+        --hidden-import="openpyxl" ^
+        --hidden-import="reportlab" ^
+        --hidden-import="reportlab.pdfgen" ^
+        --hidden-import="reportlab.lib" ^
+        --hidden-import="collections.abc" ^
+        --collect-all="PIL" ^
+        --collect-all="tkinter" ^
+        --collect-all="pandas" ^
+        --collect-all="openpyxl" ^
+        --collect-all="reportlab" ^
         main.py
+    
+    # Debug: Show what was actually built
+    - name: Debug - Show build output
+      run: |
+        Write-Output "=== Contents of dist directory ==="
+        Get-ChildItem dist -Recurse | Select-Object FullName, Length
+        Write-Output ""
+        Write-Output "=== Looking for executable ==="
+        $exe = Get-ChildItem dist -Recurse -Filter "*.exe" | Select-Object -First 1
+        if ($exe) {
+          Write-Output "Found executable: $($exe.FullName)"
+          Write-Output "Size: $($exe.Length) bytes"
+        } else {
+          Write-Output "No executable found!"
+        }
     
     - name: Package Windows app
       run: |
+        # Look for either single exe or directory structure
         if (Test-Path "dist/InvitationGenerator.exe") {
-          Compress-Archive -Path dist/InvitationGenerator.exe -DestinationPath dist/InvitationGenerator-Windows.zip
+          Write-Output "Packaging single executable"
+          Compress-Archive -Path "dist/InvitationGenerator.exe" -DestinationPath "dist/InvitationGenerator-Windows.zip"
+        } elseif (Test-Path "dist/InvitationGenerator") {
+          Write-Output "Packaging directory structure"
+          Compress-Archive -Path "dist/InvitationGenerator/*" -DestinationPath "dist/InvitationGenerator-Windows.zip"
         } else {
-          Write-Error "No Windows build found to package!"
+          Write-Error "No build output found to package!"
+          Write-Output "Available files in dist:"
+          Get-ChildItem dist -Recurse
+          exit 1
+        }
+    
+    # Verify the zip was created and show its contents
+    - name: Verify package
+      run: |
+        if (Test-Path "dist/InvitationGenerator-Windows.zip") {
+          $zip = Get-Item "dist/InvitationGenerator-Windows.zip"
+          Write-Output "✅ Package created successfully"
+          Write-Output "Package size: $($zip.Length) bytes"
+          
+          # Show zip contents
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipfile = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          Write-Output "Package contents:"
+          $zipfile.Entries | ForEach-Object { Write-Output "  - $($_.Name)" }
+          $zipfile.Dispose()
+        } else {
+          Write-Error "Package was not created!"
           exit 1
         }
     
@@ -56,84 +124,18 @@ jobs:
         path: dist/InvitationGenerator-Windows.zip
         retention-days: 30
 
-  build-macos:
-    runs-on: macos-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    # For macOS, onefile usually works fine
-    - name: Build macOS executable
-      run: |
-        pyinstaller --onefile --windowed --name="InvitationGenerator" \
-        --hidden-import='PIL._tkinter_finder' \
-        --hidden-import='pkg_resources.py2_warn' \
-        main.py
-    
-    - name: Upload macOS artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: macos-executable
-        path: dist/InvitationGenerator
-        retention-days: 30
-
-  build-linux:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-    
-    - name: Install system dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y python3-tk python3-dev
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-    
-    # For Linux, onefile usually works fine
-    - name: Build Linux executable
-      run: |
-        pyinstaller --onefile --windowed --name="InvitationGenerator" \
-        --hidden-import='PIL._tkinter_finder' \
-        --hidden-import='pkg_resources.py2_warn' \
-        main.py
-    
-    - name: Upload Linux artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: linux-executable
-        path: dist/InvitationGenerator
-        retention-days: 30
-
   create-release:
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
     
     steps:
     - uses: actions/checkout@v4
     
-    - name: Download all artifacts
+    - name: Download Windows artifact
       uses: actions/download-artifact@v4
       with:
+        name: windows-package
         path: ./artifacts
     
     - name: Create Release
@@ -142,12 +144,10 @@ jobs:
         tag_name: ${{ github.ref_name }}
         name: Invitation Generator ${{ github.ref_name }}
         body: |
-          ## Template-Based Invitation Generator
+          ## Template-Based Invitation Generator - Windows Release
           
-          ### Downloads:
+          ### Download:
           - **Windows**: InvitationGenerator-Windows.zip (Extract and run InvitationGenerator.exe)
-          - **macOS**: InvitationGenerator (macOS)
-          - **Linux**: InvitationGenerator (Linux)
           
           ### Features:
           - Upload custom template backgrounds
@@ -161,15 +161,13 @@ jobs:
           - Template image (PNG/JPG recommended at A5 size)
           
           ### Installation:
-          1. Download the appropriate file for your OS
-          2. **Windows**: Extract the ZIP file and run InvitationGenerator.exe
-          3. **macOS/Linux**: Make executable (`chmod +x InvitationGenerator`) and run
+          1. Download InvitationGenerator-Windows.zip
+          2. Extract the ZIP file 
+          3. Run InvitationGenerator.exe from the extracted folder
           4. Upload your template and Excel file and generate invitations!
         draft: false
         prerelease: false
         files: |
-          ./artifacts/windows-package/InvitationGenerator-Windows.zip
-          ./artifacts/macos-executable/InvitationGenerator
-          ./artifacts/linux-executable/InvitationGenerator
+          ./artifacts/InvitationGenerator-Windows.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
