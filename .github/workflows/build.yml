@@ -42,9 +42,7 @@ jobs:
     
     - name: Package Windows app
       run: |
-        if (Test-Path "dist/InvitationGenerator") {
-          Compress-Archive -Path dist/InvitationGenerator/* -DestinationPath dist/InvitationGenerator-Windows.zip
-        } elseif (Test-Path "dist/InvitationGenerator.exe") {
+        if (Test-Path "dist/InvitationGenerator.exe") {
           Compress-Archive -Path dist/InvitationGenerator.exe -DestinationPath dist/InvitationGenerator-Windows.zip
         } else {
           Write-Error "No Windows build found to package!"
