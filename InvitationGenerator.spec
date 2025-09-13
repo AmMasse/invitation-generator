@@ -40,13 +40,8 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        'matplotlib',
-        'scipy',
         'IPython',
-        'jupyter',
-        'test',
-        'tests',
-        'unittest'
+        'jupyter'
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
